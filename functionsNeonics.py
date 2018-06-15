@@ -16,20 +16,21 @@ def add_user(u,c, ln=1):
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ''', 
           (str(u['id']),u['screen_name'],u['created_at'],u['description'],str(u['favourites_count']),
             str(u['followers_count']),str(u['friends_count']),u['lang'],str(u['listed_count']),
-              u['location'],u['name'],str(u['statuses_count']),str(u['ln'])))
-
+              u['location'],u['name'],str(u['statuses_count']),str(ln)))
+              
+              
 def add_status(s,c, ln=1):
     '''Create the status entity, main attributes, hashtags and relative users (autor, replied, mentioned)'''
     c.execute('''
     INSERT INTO 
         statuses(id,created_at,favorite_count,
-        lang,retweet_count,source,txt)
+        lang,retweet_count,source,txt, linked_neonics)
     VALUES (?, ?,? ,?  ,? ,? ,?, ?)''', (str(s['id']),s['created_at'],str(s['favorite_count']),
         s['lang'],
         str(s['retweet_count']),
         s['source'], 
         s['text'],
-        str(s['ln'])))
+        str(ln)))
     
     #Facultative attributes (None if absent)
     for k in ['in_reply_to_status_id','place','coordinates','in_reply_to_user_id']:
@@ -66,8 +67,8 @@ def add_status(s,c, ln=1):
         u=twitter_api.users.show(id=str(s['user']['id']))
         add_user(u,c,ln=ln)
     elif ln==1 and autor[-1]==0:#if directly linked to neonics => link it
-        c.execute("UPDATE users SET linked_neonics=1 WHERE id={}",(str(autor[0]),)
-
+        c.execute("UPDATE users SET linked_neonics=1 WHERE id={}",(str(autor[0]),))
+    
     #autor of the replied tweet
     if not s['in_reply_to_user_id']==None:
         replied=c.execute("SELECT * FROM users WHERE id=?", (str(s['in_reply_to_user_id']),)).fetchone()
@@ -75,7 +76,7 @@ def add_status(s,c, ln=1):
             u=twitter_api.users.show(id=str(s['in_reply_to_user_id']))
             add_user(u,c,ln=1)
         elif ln==1 and replied[-1]==0:#if directly linked to neonics => link it
-            c.execute("UPDATE users SET linked_neonics=1 WHERE id={}",(str(replied[0]),)
+            c.execute("UPDATE users SET linked_neonics=1 WHERE id={}",(str(replied[0]),))
             
         
     #users mentioned        
@@ -88,7 +89,7 @@ def add_status(s,c, ln=1):
             if mentioned==None:#if not in the base => add id
                 u=twitter_api.users.show(id=str(u['id']))
                 add_user(u,c,ln=1) 
-            elif n==1 and mentioned[-1]=0:#if directly linked to neonics => link it
+            elif n==1 and mentioned[-1]==0:#if directly linked to neonics => link it
                 c.execute("UPDATE users SET linked_neonics=1 WHERE id={}",(str(mentioned[0]),))
             
             #Add the user mentions         
@@ -101,6 +102,7 @@ def add_status(s,c, ln=1):
                     WHERE status_id=? AND htg = ?''',(str(s['id']),h['text'].lower())).fetchone())==None:
             #Ajouter le htg 
             c.execute('''INSERT INTO tags(status_id, htg) VALUES (?,?)''',(str(s['id']),h['text'].lower()))
+            
             
 #TO DO :
     #Test it
